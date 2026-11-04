@@ -1,35 +1,7 @@
 // Vercel Serverless Function: Manga Sources API
 // Zero persistent database required - pure on-demand scraping and API normalization
 
-const SOURCES = [
-  {
-    id: "mangadex",
-    name: "MangaDex",
-    lang: "en",
-    version: "1.2.0",
-    icon: "https://mangadex.org/favicon.ico",
-    supports_latest: true,
-    is_nsfw: false
-  },
-  {
-    id: "asurascans",
-    name: "Asura Scans",
-    lang: "en",
-    version: "1.6.69",
-    icon: "https://cdn.jsdelivr.net/gh/keiyoushi/extensions-source@main/src/en/asurascans/res/mipmap-xhdpi/ic_launcher.png",
-    supports_latest: true,
-    is_nsfw: false
-  },
-  {
-    id: "mangapill",
-    name: "MangaPill",
-    lang: "en",
-    version: "1.1.0",
-    icon: "https://mangapill.com/favicon.ico",
-    supports_latest: true,
-    is_nsfw: false
-  }
-];
+const SOURCES = [];
 
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 

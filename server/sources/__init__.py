@@ -19,7 +19,11 @@ _LOCAL_SOURCES = {
     "mangapill": MangaPillSource(),
     "asurascans": AsuraScansSource(),
     "mangafire": MangaFireSource(),
-    "manga18": Manga18Source()
+    "manga18": Manga18Source(),
+    "6084907896154116083": MangaFireSource(),
+    "2499283573021220255": MangaDexSource(),
+    "8448310129093543312": MangaPillSource(),
+    "499082788596590240": AsuraScansSource()
 }
 
 DEDICATED_PKG_MAP = {
@@ -43,11 +47,24 @@ def get_source(source_id: str):
     # 1. Local and dedicated scrapers priority
     if clean_sid in ("local", "localstorage"):
         return _LOCAL_SOURCES["local"]
+    if sid in _LOCAL_SOURCES:
+        return _LOCAL_SOURCES[sid]
     if sid.lower() in _LOCAL_SOURCES:
         return _LOCAL_SOURCES[sid.lower()]
     if clean_sid in ("asura", "asurascans"):
         return _LOCAL_SOURCES.get("asurascans")
-    if clean_sid in ("mangafire", "mangafireto"):
+    if clean_sid in ("mangafire", "mangafireto", "6084907896154116083"):
+        # If Suwayomi is active with this source, use it; else fallback cleanly
+        try:
+            if suwayomi_client.is_healthy():
+                sw_sources = suwayomi_client.get_sources()
+                for s in sw_sources:
+                    if str(s.get("id")) == "6084907896154116083":
+                        if "6084907896154116083" not in _SUWAYOMI_SOURCE_CACHE:
+                            _SUWAYOMI_SOURCE_CACHE["6084907896154116083"] = SuwayomiSource(s)
+                        return _SUWAYOMI_SOURCE_CACHE["6084907896154116083"]
+        except Exception:
+            pass
         return _LOCAL_SOURCES.get("mangafire")
     if clean_sid in ("manga18", "manga18fx"):
         return _LOCAL_SOURCES.get("manga18")
@@ -88,10 +105,22 @@ def get_source(source_id: str):
         logger.error(f"Error querying Suwayomi sources in get_source: {e}")
 
     # 3. Direct dedicated registry fallback
+    if sid in _LOCAL_SOURCES:
+        return _LOCAL_SOURCES[sid]
     if sid.lower() in _LOCAL_SOURCES:
         return _LOCAL_SOURCES[sid.lower()]
     if clean_sid in _LOCAL_SOURCES:
         return _LOCAL_SOURCES[clean_sid]
+
+    # Map known Keiyoushi IDs to local scrapers as final fallback
+    if sid == "6084907896154116083" or "mangafire" in clean_sid:
+        return _LOCAL_SOURCES["mangafire"]
+    if sid == "2499283573021220255" or "mangadex" in clean_sid:
+        return _LOCAL_SOURCES["mangadex"]
+    if sid == "8448310129093543312" or "mangapill" in clean_sid:
+        return _LOCAL_SOURCES["mangapill"]
+    if sid == "499082788596590240" or "asura" in clean_sid:
+        return _LOCAL_SOURCES["asurascans"]
 
     return None
 

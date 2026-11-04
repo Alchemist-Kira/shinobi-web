@@ -3,11 +3,12 @@
 const API = {
   _ensureFreshState() {
     try {
-      if (!localStorage.getItem('shinobi_fresh_start_clean_v3')) {
+      if (!localStorage.getItem('shinobi_fresh_clean_v10')) {
         localStorage.removeItem('shinobi_installed_sources');
         localStorage.removeItem('mihon_pinned_sources');
         localStorage.removeItem('shinobi_repo_exts_cache');
-        localStorage.setItem('shinobi_fresh_start_clean_v3', 'true');
+        localStorage.setItem('shinobi_installed_sources', JSON.stringify([]));
+        localStorage.setItem('shinobi_fresh_clean_v10', 'true');
       }
     } catch (e) {}
   },
@@ -203,7 +204,13 @@ const API = {
   _getInstalledPkgList() {
     try {
       const raw = localStorage.getItem('shinobi_installed_sources');
-      return raw ? JSON.parse(raw) : [];
+      const list = raw ? JSON.parse(raw) : [];
+      const banned = new Set([
+        'mangadex', 'asurascans', 'mangapill',
+        'tachiyomi.en.mangadex', 'tachiyomi.en.asurascans', 'tachiyomi.en.mangapill',
+        'eu.kanade.tachiyomi.extension.en.mangadex', 'eu.kanade.tachiyomi.extension.en.asurascans', 'eu.kanade.tachiyomi.extension.en.mangapill'
+      ]);
+      return list.filter(pkg => pkg && typeof pkg === 'string' && !banned.has(pkg));
     } catch (e) {
       return [];
     }
@@ -286,6 +293,16 @@ const API = {
         map.set(s.id, s);
         if (s.pkg) localPkgs.add(s.pkg);
       }
+    }
+
+    const banned = new Set([
+      'mangadex', 'asurascans', 'mangapill',
+      'tachiyomi.en.mangadex', 'tachiyomi.en.asurascans', 'tachiyomi.en.mangapill',
+      'eu.kanade.tachiyomi.extension.en.mangadex', 'eu.kanade.tachiyomi.extension.en.asurascans', 'eu.kanade.tachiyomi.extension.en.mangapill'
+    ]);
+    for (const b of banned) {
+      localPkgs.delete(b);
+      map.delete(b);
     }
 
     // Add all sources from installed packages recorded in localPkgs
@@ -446,6 +463,15 @@ const API = {
         }
       }
     } catch (e) {}
+
+    const banned = new Set([
+      'mangadex', 'asurascans', 'mangapill',
+      'tachiyomi.en.mangadex', 'tachiyomi.en.asurascans', 'tachiyomi.en.mangapill',
+      'eu.kanade.tachiyomi.extension.en.mangadex', 'eu.kanade.tachiyomi.extension.en.asurascans', 'eu.kanade.tachiyomi.extension.en.mangapill'
+    ]);
+    for (const b of banned) {
+      installedPkgs.delete(b);
+    }
 
     API._saveInstalledPkgList(Array.from(installedPkgs));
     if (installedPkgs.size === 0) return [];
