@@ -1,0 +1,8 @@
+{
+  "name": "shinobi-web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Shinobi Manga & Manhwa Reader - Vercel Serverless Edition",
+  "type": "module"
+}
+

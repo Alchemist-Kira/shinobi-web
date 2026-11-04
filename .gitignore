@@ -1,0 +1,38 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Large binary files (exceeds GitHub 100MB limit)
+*.jar
+server/bin/*.jar
+
+# Databases & local state
+*.db
+*.sqlite
+*.sqlite3
+mihon_web.db
+database.db
+mihon.db
+
+# Local downloads and covers content (preserve directory structure via .gitkeep)
+downloads/*
+!downloads/.gitkeep
+covers/*
+!covers/.gitkeep
+data/backups/
+data/extensions_cache.json
+*.tachibk
+
+# Windows / OS metadata
+*.lnk
+Thumbs.db
+.DS_Store
+
+# Node & Vercel
+node_modules/
+.vercel/
+
+# Environment files
+.env
+.env.local

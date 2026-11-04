@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shinobi — Manhwa & Manga Reader</title>
+  <link rel="icon" type="image/png" href="/static/img/shinobi.png">
+  <link rel="stylesheet" href="/static/css/variables.css?v=11.0">
+  <link rel="stylesheet" href="/static/css/main.css?v=13.3">
+  <link rel="stylesheet" href="/static/css/reader.css?v=11.1">
+  <script src="/static/js/theme.js?v=11.0"></script>
+</head>
+<body data-active-tab="library">
+  <div class="app-layout">
+    <!-- Sidebar Navigation -->
+    <aside class="app-sidebar">
+      <div class="brand-header">
+        <div class="brand-icon">
+          <img src="/static/img/shinobi.png" alt="Shinobi" class="brand-logo-img">
+        </div>
+        <div class="brand-text">
+          <span class="brand-title">SHINOBI</span>
+          <span class="brand-subtitle">WEB EDITION</span>
+        </div>
+      </div>
+
+      <nav class="nav-links">
+        <div class="nav-item active" data-tab="library">
+          <svg viewBox="0 0 24 24" class="nav-icon">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+          </svg>
+          <span>Library</span>
+        </div>
+
+        <div class="nav-item" data-tab="history">
+          <svg viewBox="0 0 24 24" class="nav-icon">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+          <span>History</span>
+        </div>
+
+        <div class="nav-item" data-tab="browse">
+          <svg viewBox="0 0 24 24" class="nav-icon">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon>
+          </svg>
+          <span>Browse</span>
+        </div>
+
+        <div class="nav-item" data-tab="downloads">
+          <svg viewBox="0 0 24 24" class="nav-icon">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span>Downloads</span>
+        </div>
+
+        <div class="nav-item" data-tab="statistics">
+          <svg viewBox="0 0 24 24" class="nav-icon">
+            <line x1="18" y1="20" x2="18" y2="10"></line>
+            <line x1="12" y1="20" x2="12" y2="4"></line>
+            <line x1="6" y1="20" x2="6" y2="14"></line>
+          </svg>
+          <span>Statistics</span>
+        </div>
+
+        <div class="nav-item" data-tab="settings">
+          <svg viewBox="0 0 24 24" class="nav-icon">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+          <span>Settings</span>
+        </div>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="storage-indicator">
+          <div class="status-dot"></div>
+          <span>Local Sync Online</span>
+        </div>
+        <span>v1.0</span>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="app-main">
+      <!-- Top App Bar -->
+      <header class="top-bar">
+        <div class="top-bar-title" id="top-bar-page-title">Library</div>
+
+        <div class="top-bar-actions">
+          <button id="btn-toggle-incognito" class="btn btn-secondary" title="Incognito Mode: Suspends reading history and progress updates" type="button" style="padding: 6px 12px; font-size: 0.8rem; gap: 7px; display: inline-flex; align-items: center; border-radius: var(--radius-sm);">
+            <svg viewBox="0 0 24 24" style="width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2;">
+              <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+            <span id="incognito-btn-text">Incognito</span>
+          </button>
+          <div class="search-box">
+            <svg viewBox="0 0 24 24" class="search-icon">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="top-search-input" class="search-input" placeholder="Search library or web..." />
+          </div>
+        </div>
+      </header>
+
+      <!-- View Pages Container -->
+      <div class="page-container">
+        <!-- View: Library -->
+        <section id="view-library" class="view-page"></section>
+
+        <!-- View: History -->
+        <section id="view-history" class="view-page" style="display: none;"></section>
+
+        <!-- View: Browse -->
+        <section id="view-browse" class="view-page" style="display: none;"></section>
+
+        <!-- View: Manga Details -->
+        <section id="view-manga_detail" class="view-page" style="display: none;"></section>
+
+        <!-- View: Downloads -->
+        <section id="view-downloads" class="view-page" style="display: none;"></section>
+
+        <!-- View: Global Search -->
+        <section id="view-globalsearch" class="view-page" style="display: none;"></section>
+
+        <!-- View: Statistics -->
+        <section id="view-statistics" class="view-page" style="display: none;"></section>
+
+        <!-- View: Settings -->
+        <section id="view-settings" class="view-page" style="display: none;"></section>
+      </div>
+    </main>
+  </div>
+
+  <!-- Fullscreen Webtoon Reader Modal -->
+  <div id="reader-modal" style="display: none;"></div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Global Modal Root (Always visible regardless of active tab) -->
+  <div id="app-modal-root"></div>
+
+  <!-- Client Scripts -->
+  <script src="/static/js/storage.js?v=3.0"></script>
+  <script src="/static/js/api.js?v=17.0"></script>
+  <script src="/static/js/state.js?v=9.8"></script>
+  <script src="/static/js/router.js?v=9.7"></script>
+  <script src="/static/js/components/navbar.js?v=9.6"></script>
+  <script src="/static/js/components/library.js?v=12.2"></script>
+  <script src="/static/js/components/history.js?v=10.0"></script>
+  <script src="/static/js/components/browse.js?v=11.0"></script>
+  <script src="/static/js/components/manga_detail.js?v=14.3"></script>
+  <script src="/static/js/components/reader.js?v=11.1"></script>
+  <script src="/static/js/components/downloads.js?v=11.1"></script>
+  <script src="/static/js/components/statistics.js?v=2.0"></script>
+  <script src="/static/js/components/globalsearch.js?v=9.6"></script>
+  <script src="/static/js/components/migration.js?v=9.7"></script>
+  <script src="/static/js/components/folder_picker.js?v=9.6"></script>
+  <script src="/static/js/components/tracker_auth.js?v=1.5"></script>
+  <script src="/static/js/components/setup.js?v=2.3"></script>
+  <script src="/static/js/components/settings.js?v=13.1"></script>
+  <script src="/static/js/app.js?v=11.2"></script>
+</body>
+</html>
