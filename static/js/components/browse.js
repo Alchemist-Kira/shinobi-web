@@ -280,8 +280,9 @@ const BrowseView = {
   async loadSourcesDirectory() {
     try {
       this.sourcesList = await API.getSources();
+      const allGroups = this.groupSources(this.sourcesList);
       const sourcesTabBadge = document.querySelector('#subtab-sources .lib-tab-count');
-      const count = (this.sourcesList || []).length;
+      const count = allGroups.length;
       if (sourcesTabBadge) {
         if (count > 0) {
           sourcesTabBadge.textContent = count;
@@ -447,6 +448,16 @@ const BrowseView = {
     const totalCatalogs = filtered.reduce((acc, g) => acc + g.sources.length, 0);
     if (countLabel) {
       countLabel.textContent = `${filtered.length} Extension${filtered.length === 1 ? '' : 's'} (${totalCatalogs} Catalogs)`;
+    }
+
+    const sourcesTabBadge = document.querySelector('#subtab-sources .lib-tab-count');
+    if (sourcesTabBadge) {
+      if (filtered.length > 0) {
+        sourcesTabBadge.textContent = filtered.length;
+        sourcesTabBadge.style.display = 'inline-block';
+      } else {
+        sourcesTabBadge.style.display = 'none';
+      }
     }
 
     if (filtered.length === 0) {
@@ -1684,7 +1695,7 @@ const BrowseView = {
         res = await API.searchManga(this.currentSource, this.listing.query || '', 1, filterParams);
       }
 
-      const items = res.items || [];
+      const items = res.items || res.manga || [];
       const total = res.total || 0;
       const limit = res.limit || 24;
       this.catalogTotalPages = Math.max(1, Math.ceil(total / limit));
@@ -1738,7 +1749,7 @@ const BrowseView = {
         res = await API.searchManga(this.currentSource, this.listing.query || '', nextPage, filterParams);
       }
 
-      const newItems = res.items || [];
+      const newItems = res.items || res.manga || [];
       if (newItems.length > 0) {
         const grid = document.getElementById('browse-grid');
         if (grid) {
