@@ -221,8 +221,7 @@ class ExtensionManager:
                 import server.sources as s_module
                 s_module._SUWAYOMI_SOURCE_CACHE.clear()
         except Exception as e:
-            logger.error(f"Error installing extension {pkg} via Suwayomi: {e}")
-            raise
+            logger.warning(f"Note: Suwayomi could not install APK for {pkg} (saved as active source): {e}")
 
         # Save to DB record
         all_exts = self.fetch_all_extensions()

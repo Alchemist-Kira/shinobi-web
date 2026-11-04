@@ -257,56 +257,57 @@ const API = {
   },
 
   getSources: async () => {
-    const installedPkgs = new Set(API._getInstalledPkgList());
-    if (installedPkgs.size === 0) {
-      const localPath = localStorage.getItem('shinobi_storage_folder_path') || localStorage.getItem('shinobi_local_folder');
-      if (localPath) {
-        return [{
-          id: 'local',
-          name: 'Local Storage',
-          lang: 'all',
-          pkg: 'local.storage',
-          icon_url: '/static/img/ic_local_source.png',
-          supports_latest: false
-        }];
-      }
-      return [];
-    }
+    const localPkgs = new Set(API._getInstalledPkgList());
 
+    // 1. Fetch server sources
+    let serverSources = [];
     try {
       const res = await fetch('/api/sources');
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          return data.filter(s => installedPkgs.has(s.pkg) || installedPkgs.has(s.id) || s.id === 'local');
+        if (Array.isArray(data)) {
+          serverSources = data;
         }
       }
     } catch (e) {}
 
+    // 2. Fetch repo cache to unpack sources for client-side/newly installed extensions
     let allExts = [];
     try {
       const raw = localStorage.getItem('shinobi_repo_exts_cache');
       if (raw) allExts = JSON.parse(raw);
     } catch (e) {}
 
-    const sources = [];
-    for (const pkg of installedPkgs) {
+    const map = new Map();
+
+    // Add all valid sources from server
+    for (const s of serverSources) {
+      if (s.id !== 'local' && s.pkg !== 'local.storage') {
+        map.set(s.id, s);
+        if (s.pkg) localPkgs.add(s.pkg);
+      }
+    }
+
+    // Add all sources from installed packages recorded in localPkgs
+    for (const pkg of localPkgs) {
       const foundExt = allExts.find(e => e.pkg === pkg);
       if (foundExt) {
         if (Array.isArray(foundExt.sources) && foundExt.sources.length > 0) {
           for (const s of foundExt.sources) {
-            sources.push({
-              id: s.id || foundExt.pkg,
-              name: s.name || foundExt.name,
-              lang: (s.language || s.lang || foundExt.lang || 'en').toLowerCase(),
-              pkg: foundExt.pkg,
-              version: foundExt.version,
-              icon_url: foundExt.icon_url,
-              supports_latest: true
-            });
+            if (!map.has(s.id)) {
+              map.set(s.id, {
+                id: s.id || foundExt.pkg,
+                name: s.name || foundExt.name,
+                lang: (s.language || s.lang || foundExt.lang || 'en').toLowerCase(),
+                pkg: foundExt.pkg,
+                version: foundExt.version,
+                icon_url: foundExt.icon_url,
+                supports_latest: true
+              });
+            }
           }
-        } else {
-          sources.push({
+        } else if (!map.has(foundExt.pkg)) {
+          map.set(foundExt.pkg, {
             id: foundExt.pkg,
             name: foundExt.name,
             lang: foundExt.lang || 'en',
@@ -316,20 +317,28 @@ const API = {
             supports_latest: true
           });
         }
-      } else {
-        const cleanName = pkg.replace('eu.kanade.tachiyomi.extension.', '').replace('tachiyomi.', '');
-        sources.push({
-          id: pkg,
-          name: cleanName.charAt(0).toUpperCase() + cleanName.slice(1),
-          lang: 'en',
-          pkg: pkg,
-          version: '1.0.0',
-          icon_url: '/static/img/default-cover.png',
-          supports_latest: true
-        });
       }
     }
-    return sources;
+
+    // Sync back merged installed list
+    API._saveInstalledPkgList(Array.from(localPkgs));
+
+    const result = Array.from(map.values());
+
+    // If local folder is configured, also include Local Storage
+    const localPath = localStorage.getItem('shinobi_storage_folder_path') || localStorage.getItem('shinobi_local_folder');
+    if (localPath) {
+      result.unshift({
+        id: 'local',
+        name: 'Local Storage',
+        lang: 'all',
+        pkg: 'local.storage',
+        icon_url: '/static/img/ic_local_source.png',
+        supports_latest: false
+      });
+    }
+
+    return result;
   },
 
   getExtensions: async (params = {}) => {
@@ -422,17 +431,24 @@ const API = {
 
   getInstalledExtensions: async () => {
     const installedPkgs = new Set(API._getInstalledPkgList());
-    if (installedPkgs.size === 0) return [];
 
+    // Also query server installed extensions
     try {
       const res = await fetch('/api/extensions/installed');
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data)) {
-          return data.filter(e => installedPkgs.has(e.pkg));
+          for (const e of data) {
+            if (e.pkg && e.pkg !== 'local.storage') {
+              installedPkgs.add(e.pkg);
+            }
+          }
         }
       }
     } catch (e) {}
+
+    API._saveInstalledPkgList(Array.from(installedPkgs));
+    if (installedPkgs.size === 0) return [];
 
     let allExts = [];
     try {
@@ -440,7 +456,10 @@ const API = {
       if (raw) allExts = JSON.parse(raw);
     } catch (e) {}
 
-    return allExts.filter(e => installedPkgs.has(e.pkg));
+    return Array.from(installedPkgs).map(pkg => {
+      const found = allExts.find(e => e.pkg === pkg);
+      return found || { pkg, name: pkg, is_installed: true, installed: true };
+    });
   },
 
   installExtension: async (pkg) => {

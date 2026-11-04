@@ -50,6 +50,10 @@ const BrowseView = {
     const container = document.getElementById('view-browse');
     if (!container) return;
 
+    try {
+      this.sourcesList = await API.getSources();
+    } catch (e) {}
+
     const sourcesCount = (this.sourcesList || []).length;
 
     container.innerHTML = `
@@ -76,7 +80,7 @@ const BrowseView = {
           <div class="lib-tabs-track">
             <button class="lib-nav-tab ${this.activeSubTab === 'sources' ? 'active' : ''}" id="subtab-sources" type="button">
               <span class="lib-tab-label">Sources</span>
-              ${sourcesCount > 0 ? `<span class="lib-tab-count">${sourcesCount}</span>` : ''}
+              <span class="lib-tab-count" style="display: ${sourcesCount > 0 ? 'inline-block' : 'none'};">${sourcesCount}</span>
               <span class="lib-tab-indicator"></span>
             </button>
             <button class="lib-nav-tab ${this.activeSubTab === 'globalsearch' ? 'active' : ''}" id="subtab-globalsearch" type="button">
