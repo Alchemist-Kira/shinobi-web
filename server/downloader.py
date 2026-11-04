@@ -76,6 +76,7 @@ def get_valid_chapter_cbz_names(chapter_name=None, chapter_number=None, scanlato
 
 class ChapterDownloader:
     def __init__(self):
+        db.init_db()
         self.is_running = True
         self.current_task = None
         self.paused_tasks = set()
