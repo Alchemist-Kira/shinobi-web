@@ -8,7 +8,7 @@ const BrowseView = {
   sourcesList: [],
   sourceSearchQuery: '',
   sourceLangFilter: 'all',
-  pinnedSourceIds: new Set(JSON.parse(localStorage.getItem('mihon_pinned_sources') || '["mangadex"]')),
+  pinnedSourceIds: new Set(JSON.parse(localStorage.getItem('mihon_pinned_sources') || '[]')),
 
   // Mihon Catalog State & Filters
   listing: {
@@ -182,10 +182,12 @@ const BrowseView = {
     // Populate migration badge count in background
     if (typeof MigrationView !== 'undefined' && MigrationView.updateBrowseBadge) {
       MigrationView.init().then(() => {
-        API.getMigrationSources().then(sList => {
-          MigrationView.sourcesList = sList;
-          MigrationView.updateBrowseBadge();
-        }).catch(() => {});
+        if (typeof API.getMigrationSources === 'function') {
+          API.getMigrationSources().then(sList => {
+            MigrationView.sourcesList = sList || [];
+            MigrationView.updateBrowseBadge();
+          }).catch(() => {});
+        }
       });
     }
 
@@ -435,10 +437,27 @@ const BrowseView = {
 
     if (filtered.length === 0) {
       allGrid.innerHTML = `
-        <div style="grid-column: 1/-1; text-align: center; padding: 40px 20px; color: var(--text-muted);">
-          No matching sources found. Try adjusting your filter or install more from Extensions tab.
+        <div style="grid-column: 1/-1; text-align: center; padding: 60px 20px; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); color: var(--text-muted); margin: 20px 0;">
+          <div style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">
+            ${this.sourceSearchQuery ? 'No matching sources found' : 'No sources installed'}
+          </div>
+          <p style="font-size: 0.88rem; max-width: 440px; margin: 0 auto 16px auto;">
+            ${this.sourceSearchQuery ? 'Try adjusting your search filter or clear your query.' : 'Get started by installing extensions from the Extensions tab or adding your local manga folder.'}
+          </p>
+          ${!this.sourceSearchQuery ? `
+            <button id="btn-browse-to-extensions" class="btn btn-primary" style="font-size: 0.85rem; padding: 8px 18px; border-radius: var(--radius-full); font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+              Browse Extensions
+            </button>
+          ` : ''}
         </div>
       `;
+      const toExtBtn = document.getElementById('btn-browse-to-extensions');
+      if (toExtBtn) {
+        toExtBtn.addEventListener('click', () => {
+          const extTabBtn = document.getElementById('subtab-extensions');
+          if (extTabBtn) extTabBtn.click();
+        });
+      }
       if (pinnedContainer) pinnedContainer.style.display = 'none';
       return;
     }

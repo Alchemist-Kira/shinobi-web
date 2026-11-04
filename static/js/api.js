@@ -1,6 +1,16 @@
 // API Client Helper - Shinobi Web Serverless Edition
 // Routes all library, progress, history, and settings storage to client-side IndexedDB
 const API = {
+  _ensureFreshState() {
+    try {
+      if (!localStorage.getItem('shinobi_fresh_clean_init_v2')) {
+        localStorage.removeItem('shinobi_installed_sources');
+        localStorage.removeItem('mihon_pinned_sources');
+        localStorage.setItem('shinobi_fresh_clean_init_v2', 'true');
+      }
+    } catch (e) {}
+  },
+
   isIncognito() {
     return (typeof State !== 'undefined' && State.incognitoMode) || localStorage.getItem('shinobi_incognito') === 'true';
   },
@@ -232,63 +242,83 @@ const API = {
 
   getSources: async () => {
     try {
-      return await API.get('/api/sources');
-    } catch (e) {
-      const installedPkgs = new Set(API._getInstalledPkgList());
-      if (installedPkgs.size === 0) return [];
-      return API._availableCatalog.filter(s => installedPkgs.has(s.pkg) || installedPkgs.has(s.id));
-    }
+      const res = await fetch('/api/sources');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) return data;
+      }
+    } catch (e) {}
+
+    const installedPkgs = new Set(API._getInstalledPkgList());
+    if (installedPkgs.size === 0) return [];
+    return API._availableCatalog.filter(s => installedPkgs.has(s.pkg) || installedPkgs.has(s.id));
   },
 
   getExtensions: async (params = {}) => {
     try {
       const q = new URLSearchParams(params).toString();
-      return await API.get(`/api/extensions${q ? '?' + q : ''}`);
-    } catch (e) {
-      let list = [...API._availableCatalog];
-      if (params.q) {
-        const q = params.q.toLowerCase().trim();
-        list = list.filter(e => e.name.toLowerCase().includes(q) || e.pkg.toLowerCase().includes(q));
-      }
-      return {
-        extensions: list,
-        total: list.length,
-        pages: 1
-      };
+      const res = await fetch(`/api/extensions${q ? '?' + q : ''}`);
+      if (res.ok) return await res.json();
+    } catch (e) {}
+
+    let list = [...API._availableCatalog];
+    if (params.q) {
+      const q = params.q.toLowerCase().trim();
+      list = list.filter(e => e.name.toLowerCase().includes(q) || e.pkg.toLowerCase().includes(q));
     }
+    return {
+      extensions: list,
+      total: list.length,
+      pages: 1
+    };
   },
 
   getInstalledExtensions: async () => {
     try {
-      return await API.get('/api/extensions/installed');
-    } catch (e) {
-      const installedPkgs = new Set(API._getInstalledPkgList());
-      return API._availableCatalog.filter(e => installedPkgs.has(e.pkg) || installedPkgs.has(e.id));
-    }
+      const res = await fetch('/api/extensions/installed');
+      if (res.ok) return await res.json();
+    } catch (e) {}
+
+    const installedPkgs = new Set(API._getInstalledPkgList());
+    return API._availableCatalog.filter(e => installedPkgs.has(e.pkg) || installedPkgs.has(e.id));
   },
 
   installExtension: async (pkg) => {
-    try {
-      return await API.post('/api/extensions/install', { pkg });
-    } catch (e) {
-      const list = API._getInstalledPkgList();
-      if (!list.includes(pkg)) {
-        list.push(pkg);
-        API._saveInstalledPkgList(list);
-      }
-      return { success: true };
+    const list = API._getInstalledPkgList();
+    if (!list.includes(pkg)) {
+      list.push(pkg);
+      API._saveInstalledPkgList(list);
     }
+    try {
+      await fetch('/api/extensions/install', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pkg })
+      });
+    } catch (e) {}
+    return { success: true };
   },
 
   uninstallExtension: async (pkg) => {
     try {
-      return await API.post('/api/extensions/uninstall', { pkg });
-    } catch (e) {
       let list = API._getInstalledPkgList();
-      list = list.filter(p => p !== pkg && p !== pkg.replace('tachiyomi.en.', ''));
+      list = list.filter(p => p !== pkg && p !== pkg.replace('tachiyomi.en.', '') && !pkg.includes(p));
       API._saveInstalledPkgList(list);
-      return { success: true };
-    }
+
+      const pinned = new Set(JSON.parse(localStorage.getItem('mihon_pinned_sources') || '[]'));
+      pinned.delete(pkg);
+      pinned.delete(pkg.replace('tachiyomi.en.', ''));
+      localStorage.setItem('mihon_pinned_sources', JSON.stringify(Array.from(pinned)));
+    } catch (e) {}
+
+    try {
+      await fetch('/api/extensions/uninstall', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pkg })
+      });
+    } catch (e) {}
+    return { success: true };
   },
 
   getExtensionRepos: async () => {
@@ -569,79 +599,250 @@ const API = {
   getDownloads: async (params = {}) => {
     try {
       const q = new URLSearchParams(params).toString();
-      return await API.get(`/api/downloads${q ? '?' + q : ''}`);
+      const res = await fetch(`/api/downloads${q ? '?' + q : ''}`);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : (data.active || []);
     } catch (e) {
-      return { active: [], completed: [], failed: [] };
+      return [];
     }
   },
   getMangaDownloadStatus: async (mangaId) => {
     try {
-      return await API.get(`/api/manga/${mangaId}/download_status`);
+      const res = await fetch(`/api/manga/${encodeURIComponent(mangaId)}/download_status`);
+      if (!res.ok) return { count: 0 };
+      return await res.json();
     } catch (e) {
       return { count: 0 };
     }
   },
   queueDownload: async (data) => {
     try {
-      return await API.post('/api/downloads/queue', data);
+      const res = await fetch('/api/downloads/queue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      if (!res.ok) return { success: false };
+      return await res.json();
     } catch (e) {
       return { success: false, error: e.message };
     }
   },
   queueBulkDownloads: async (chapters) => {
     try {
-      return await API.post('/api/downloads/queue-bulk', { chapters });
+      const res = await fetch('/api/downloads/queue-bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chapters })
+      });
+      if (!res.ok) return { success: false };
+      return await res.json();
     } catch (e) {
       return { success: false, error: e.message };
     }
   },
   pauseDownload: async (taskId) => {
-    try { return await API.post(`/api/downloads/${taskId}/pause`); } catch (e) { return { success: false }; }
+    try {
+      const res = await fetch(`/api/downloads/${taskId}/pause`, { method: 'POST' });
+      return res.ok ? await res.json() : { success: false };
+    } catch (e) { return { success: false }; }
   },
   resumeDownload: async (taskId) => {
-    try { return await API.post(`/api/downloads/${taskId}/resume`); } catch (e) { return { success: false }; }
+    try {
+      const res = await fetch(`/api/downloads/${taskId}/resume`, { method: 'POST' });
+      return res.ok ? await res.json() : { success: false };
+    } catch (e) { return { success: false }; }
   },
   retryDownload: async (taskId) => {
-    try { return await API.post(`/api/downloads/${taskId}/retry`); } catch (e) { return { success: false }; }
+    try {
+      const res = await fetch(`/api/downloads/${taskId}/retry`, { method: 'POST' });
+      return res.ok ? await res.json() : { success: false };
+    } catch (e) { return { success: false }; }
   },
   reorderDownload: async (taskId, toTop = true) => {
-    try { return await API.post(`/api/downloads/${taskId}/reorder`, { to_top: toTop }); } catch (e) { return { success: false }; }
+    try {
+      const res = await fetch(`/api/downloads/${taskId}/reorder`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to_top: toTop })
+      });
+      return res.ok ? await res.json() : { success: false };
+    } catch (e) { return { success: false }; }
   },
   reorderMangaDownloads: async (mangaId, action = 'top') => {
-    try { return await API.post(`/api/downloads/manga/${mangaId}/reorder`, { action }); } catch (e) { return { success: false }; }
+    try {
+      const res = await fetch(`/api/downloads/manga/${mangaId}/reorder`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action })
+      });
+      return res.ok ? await res.json() : { success: false };
+    } catch (e) { return { success: false }; }
   },
   reorderAllMangaDownloads: async (order) => {
-    try { return await API.post('/api/downloads/manga/reorder-all', { order }); } catch (e) { return { success: false }; }
+    try {
+      const res = await fetch('/api/downloads/manga/reorder-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order })
+      });
+      return res.ok ? await res.json() : { success: false };
+    } catch (e) { return { success: false }; }
   },
   reorderAllTaskDownloads: async (order) => {
-    try { return await API.post('/api/downloads/tasks/reorder-all', { order }); } catch (e) { return { success: false }; }
+    try {
+      const res = await fetch('/api/downloads/tasks/reorder-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order })
+      });
+      return res.ok ? await res.json() : { success: false };
+    } catch (e) { return { success: false }; }
   },
   pauseMangaDownloads: async (mangaId) => {
-    try { return await API.post(`/api/downloads/manga/${mangaId}/pause`); } catch (e) { return { success: false }; }
+    try {
+      const res = await fetch(`/api/downloads/manga/${mangaId}/pause`, { method: 'POST' });
+      return res.ok ? await res.json() : { success: false };
+    } catch (e) { return { success: false }; }
   },
   resumeMangaDownloads: async (mangaId) => {
-    try { return await API.post(`/api/downloads/manga/${mangaId}/resume`); } catch (e) { return { success: false }; }
+    try {
+      const res = await fetch(`/api/downloads/manga/${mangaId}/resume`, { method: 'POST' });
+      return res.ok ? await res.json() : { success: false };
+    } catch (e) { return { success: false }; }
   },
   cancelMangaDownloads: async (mangaId) => {
-    try { return await API.post(`/api/downloads/manga/${mangaId}/cancel`); } catch (e) { return { success: false }; }
+    try {
+      const res = await fetch(`/api/downloads/manga/${mangaId}/cancel`, { method: 'POST' });
+      return res.ok ? await res.json() : { success: false };
+    } catch (e) { return { success: false }; }
   },
   cancelDownload: async (taskId) => {
-    try { return await API.delete(`/api/downloads/${taskId}`); } catch (e) { return { success: false }; }
+    try {
+      const res = await fetch(`/api/downloads/${taskId}`, { method: 'DELETE' });
+      return res.ok ? await res.json() : { success: false };
+    } catch (e) { return { success: false }; }
   },
   clearFinishedDownloads: async () => {
-    try { return await API.post('/api/downloads/clear-finished'); } catch (e) { return { success: false }; }
+    try {
+      const res = await fetch('/api/downloads/clear-finished', { method: 'POST' });
+      return res.ok ? await res.json() : { success: false };
+    } catch (e) { return { success: false }; }
   },
   pauseAllDownloads: async () => {
-    try { return await API.post('/api/downloads/pause-all'); } catch (e) { return { success: false }; }
+    try {
+      const res = await fetch('/api/downloads/pause-all', { method: 'POST' });
+      return res.ok ? await res.json() : { success: false };
+    } catch (e) { return { success: false }; }
   },
   resumeAllDownloads: async () => {
-    try { return await API.post('/api/downloads/resume-all'); } catch (e) { return { success: false }; }
+    try {
+      const res = await fetch('/api/downloads/resume-all', { method: 'POST' });
+      return res.ok ? await res.json() : { success: false };
+    } catch (e) { return { success: false }; }
   },
   autoResumeDownloads: async () => {
-    try { return await API.post('/api/downloads/auto-resume'); } catch (e) { return { count: 0 }; }
+    try {
+      const res = await fetch('/api/downloads/auto-resume', { method: 'POST' });
+      return res.ok ? await res.json() : { count: 0 };
+    } catch (e) { return { count: 0 }; }
   },
   cancelAllDownloads: async () => {
-    try { return await API.post('/api/downloads/cancel-all'); } catch (e) { return { success: false }; }
+    try {
+      const res = await fetch('/api/downloads/cancel-all', { method: 'POST' });
+      return res.ok ? await res.json() : { success: false };
+    } catch (e) { return { success: false }; }
+  },
+
+  // -------------------------------------------------------------
+  // Migration API
+  // -------------------------------------------------------------
+  getMigrationSources: async () => {
+    try {
+      const res = await fetch('/api/migration/sources');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) return data;
+      }
+    } catch (e) {}
+
+    try {
+      const library = window.Storage ? await Storage.getLibrary() : [];
+      const sourcesMap = new Map();
+      const allSources = await API.getSources();
+      const metaMap = {};
+      for (const s of allSources) {
+        metaMap[s.id] = s;
+      }
+
+      for (const item of library) {
+        const sid = item.source || item.source_id || 'unknown';
+        if (!sourcesMap.has(sid)) {
+          const sMeta = metaMap[sid] || {};
+          sourcesMap.set(sid, {
+            id: sid,
+            name: sMeta.name || sid.toUpperCase(),
+            icon_url: sMeta.icon_url || '/static/img/default-cover.png',
+            lang: sMeta.lang || 'all',
+            manga_count: 0
+          });
+        }
+        sourcesMap.get(sid).manga_count += 1;
+      }
+      return Array.from(sourcesMap.values());
+    } catch (e) {
+      return [];
+    }
+  },
+
+  getMigrationManga: async (sourceId) => {
+    try {
+      const res = await fetch(`/api/migration/manga?source=${encodeURIComponent(sourceId)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) return data;
+      }
+    } catch (e) {}
+
+    try {
+      const library = window.Storage ? await Storage.getLibrary() : [];
+      return library.filter(m => (m.source || m.source_id) === sourceId);
+    } catch (e) {
+      return [];
+    }
+  },
+
+  migrateManga: async (data) => {
+    try {
+      const res = await fetch('/api/migration/migrate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      if (res.ok) return await res.json();
+    } catch (e) {}
+
+    try {
+      if (window.Storage) {
+        const currentId = data.current_manga_id || data.current_id;
+        const targetId = data.target_manga_id || data.target_id;
+        const targetSource = data.target_source || data.source;
+        const replace = data.replace !== false;
+
+        const details = await API.getMangaDetails(targetSource, targetId);
+        if (details) {
+          await Storage.addToLibrary(details);
+          if (replace && currentId !== targetId) {
+            await Storage.removeFromLibrary(currentId);
+          }
+        }
+        return { success: true };
+      }
+    } catch (e) {
+      console.error('Migration error:', e);
+    }
+    return { success: false };
   },
 
   // -------------------------------------------------------------
@@ -695,4 +896,5 @@ const API = {
 // Global Exposure
 if (typeof window !== 'undefined') {
   window.API = API;
+  API._ensureFreshState();
 }

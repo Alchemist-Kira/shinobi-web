@@ -102,7 +102,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Background check for active downloads to set badge
   try {
     const tasks = await API.getDownloads();
-    const activeCount = tasks.filter(t => t.status === 'downloading' || t.status === 'pending').length;
+    const taskList = Array.isArray(tasks) ? tasks : (tasks?.active || []);
+    const activeCount = taskList.filter(t => t.status === 'downloading' || t.status === 'pending').length;
     Navbar.updateBadge('downloads', activeCount);
   } catch (e) {}
 
