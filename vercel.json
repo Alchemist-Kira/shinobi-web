@@ -3,8 +3,9 @@
   "cleanUrls": true,
   "rewrites": [
     { "source": "/api/proxy", "destination": "/api/proxy.js" },
-    { "source": "/api/sources", "destination": "/api/sources/index.js" },
-    { "source": "/api/sources/:route*", "destination": "/api/sources/[...route].js" },
+    { "source": "/api/proxy/(.*)", "destination": "/api/proxy.js" },
+    { "source": "/api/sources", "destination": "/api/sources.js" },
+    { "source": "/api/sources/:path*", "destination": "/api/sources.js?route=:path*" },
     { "source": "/static/(.*)", "destination": "/static/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],

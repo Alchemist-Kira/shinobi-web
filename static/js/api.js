@@ -3,12 +3,12 @@
 const API = {
   _ensureFreshState() {
     try {
-      if (!localStorage.getItem('shinobi_fresh_clean_v10')) {
+      if (!localStorage.getItem('shinobi_fresh_clean_v12')) {
         localStorage.removeItem('shinobi_installed_sources');
         localStorage.removeItem('mihon_pinned_sources');
         localStorage.removeItem('shinobi_repo_exts_cache');
         localStorage.setItem('shinobi_installed_sources', JSON.stringify([]));
-        localStorage.setItem('shinobi_fresh_clean_v10', 'true');
+        localStorage.setItem('shinobi_fresh_clean_v12', 'true');
       }
     } catch (e) {}
   },
@@ -489,18 +489,33 @@ const API = {
   },
 
   installExtension: async (pkg) => {
+    let serverOk = false;
+    try {
+      const res = await fetch('/api/extensions/install', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pkg })
+      });
+      if (res.ok) {
+        serverOk = true;
+      } else {
+        const data = await res.json().catch(() => ({}));
+        if (data && data.error) {
+          throw new Error(data.error);
+        }
+      }
+    } catch (e) {
+      const isCloudSupported = pkg.includes('mangafire') || pkg.includes('mangadex');
+      if (!isCloudSupported) {
+        throw new Error(e.message || 'This extension requires the local engine (python run.py). MangaFire and MangaDex run directly in cloud mode.');
+      }
+    }
+
     const list = API._getInstalledPkgList();
     if (!list.includes(pkg)) {
       list.push(pkg);
       API._saveInstalledPkgList(list);
     }
-    try {
-      await fetch('/api/extensions/install', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pkg })
-      });
-    } catch (e) {}
     return { success: true };
   },
 

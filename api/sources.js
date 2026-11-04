@@ -493,9 +493,25 @@ export default async function handler(req, res) {
     }
 
     // Default safe fallback response for other sources or unhandled actions
-    return res.status(200).json({ items: [], manga: [], has_next: false, chapters: [], pages: [], total: 0 });
+    return res.status(200).json({
+      items: [],
+      manga: [],
+      has_next: false,
+      chapters: [],
+      pages: [],
+      total: 0,
+      message: "This extension requires running Shinobi locally with the engine (python run.py). MangaFire and MangaDex are supported directly on the cloud."
+    });
   } catch (err) {
     console.error('Source handler error:', err);
-    return res.status(200).json({ items: [], manga: [], has_next: false, chapters: [], pages: [], total: 0, error: err.message });
+    return res.status(200).json({
+      items: [],
+      manga: [],
+      has_next: false,
+      chapters: [],
+      pages: [],
+      total: 0,
+      message: err.message || "Failed to load titles from this source."
+    });
   }
 }

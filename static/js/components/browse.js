@@ -1701,10 +1701,11 @@ const BrowseView = {
       this.catalogTotalPages = Math.max(1, Math.ceil(total / limit));
 
       if (items.length === 0) {
+        const customMsg = res.message || 'Try clearing filters or search terms.';
         grid.innerHTML = `
           <div style="grid-column: 1/-1; text-align: center; padding: 60px 20px; color: var(--text-muted);">
             <div style="font-size: 1.1rem; font-weight: 600; margin-bottom: 8px;">No titles found</div>
-            <div style="font-size: 0.88rem;">Try clearing filters or search terms.</div>
+            <div style="font-size: 0.88rem; max-width: 520px; margin: 0 auto; line-height: 1.5;">${customMsg}</div>
           </div>
         `;
         return;
@@ -1722,7 +1723,8 @@ const BrowseView = {
       console.error('Error loading catalog:', e);
       grid.innerHTML = `
         <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--accent-red);">
-          Failed to load source titles: ${e.message}
+          <div style="font-weight: 600; margin-bottom: 6px;">Failed to load source titles</div>
+          <div style="font-size: 0.88rem; color: var(--text-muted);">${this.escapeHtml(e.message)}</div>
         </div>
       `;
     }
