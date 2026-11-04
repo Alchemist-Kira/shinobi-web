@@ -276,6 +276,16 @@ const BrowseView = {
   async loadSourcesDirectory() {
     try {
       this.sourcesList = await API.getSources();
+      const sourcesTabBadge = document.querySelector('#subtab-sources .lib-tab-count');
+      const count = (this.sourcesList || []).length;
+      if (sourcesTabBadge) {
+        if (count > 0) {
+          sourcesTabBadge.textContent = count;
+          sourcesTabBadge.style.display = 'inline-block';
+        } else {
+          sourcesTabBadge.style.display = 'none';
+        }
+      }
       this.renderSourcesDirectoryList();
 
       const searchInput = document.getElementById('source-filter-input');

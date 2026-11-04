@@ -3,10 +3,11 @@
 const API = {
   _ensureFreshState() {
     try {
-      if (!localStorage.getItem('shinobi_fresh_clean_init_v2')) {
+      if (!localStorage.getItem('shinobi_fresh_start_clean_v3')) {
         localStorage.removeItem('shinobi_installed_sources');
         localStorage.removeItem('mihon_pinned_sources');
-        localStorage.setItem('shinobi_fresh_clean_init_v2', 'true');
+        localStorage.removeItem('shinobi_repo_exts_cache');
+        localStorage.setItem('shinobi_fresh_start_clean_v3', 'true');
       }
     } catch (e) {}
   },
@@ -197,36 +198,8 @@ const API = {
   // -------------------------------------------------------------
   // Sources & Manga Browsing
   // -------------------------------------------------------------
-  _availableCatalog: [
-    {
-      id: "mangadex",
-      pkg: "tachiyomi.en.mangadex",
-      name: "MangaDex",
-      lang: "en",
-      version: "1.2.0",
-      icon_url: "https://mangadex.org/favicon.ico",
-      supports_latest: true
-    },
-    {
-      id: "asurascans",
-      pkg: "tachiyomi.en.asurascans",
-      name: "Asura Scans",
-      lang: "en",
-      version: "1.6.69",
-      icon_url: "https://cdn.jsdelivr.net/gh/keiyoushi/extensions-source@main/src/en/asurascans/res/mipmap-xhdpi/ic_launcher.png",
-      supports_latest: true
-    },
-    {
-      id: "mangapill",
-      pkg: "tachiyomi.en.mangapill",
-      name: "MangaPill",
-      lang: "en",
-      version: "1.0.0",
-      icon_url: "https://mangapill.com/favicon.ico",
-      supports_latest: true
-    }
-  ],
-
+  // Sources & Manga Browsing
+  // -------------------------------------------------------------
   _getInstalledPkgList() {
     try {
       const raw = localStorage.getItem('shinobi_installed_sources');
@@ -240,47 +213,234 @@ const API = {
     localStorage.setItem('shinobi_installed_sources', JSON.stringify(pkgs));
   },
 
+  _parseRepoExtensions(rawJson, repoName = 'Keiyoushi') {
+    let list = [];
+    if (Array.isArray(rawJson)) {
+      list = rawJson;
+    } else if (rawJson && rawJson.extensionList && Array.isArray(rawJson.extensionList.extensions)) {
+      list = rawJson.extensionList.extensions;
+    } else if (rawJson && Array.isArray(rawJson.extensions)) {
+      list = rawJson.extensions;
+    }
+
+    return list.map(item => {
+      const pkg = item.packageName || item.pkg || item.id || '';
+      const name = item.name || pkg;
+      const ver = item.versionName || item.version || '1.0.0';
+      const icon = item.resources?.iconUrl || item.icon_url || item.icon || '/static/img/default-cover.png';
+      const apk = item.resources?.apkUrl || item.apk_url || '';
+      const nsfw = item.contentWarning === 'CONTENT_WARNING_NSFW' || item.isNsfw || item.nsfw || false;
+
+      let lang = 'en';
+      if (item.sources && item.sources.length > 0) {
+        lang = (item.sources[0].language || item.sources[0].lang || 'en').toLowerCase();
+      } else if (pkg.includes('.en.')) {
+        lang = 'en';
+      } else if (pkg.includes('.all.')) {
+        lang = 'all';
+      } else if (item.lang) {
+        lang = item.lang.toLowerCase();
+      }
+
+      return {
+        pkg,
+        name,
+        version: ver,
+        lang,
+        icon_url: icon,
+        apk_url: apk,
+        nsfw,
+        repo_name: repoName,
+        sources: item.sources || [{ id: pkg, name, lang }]
+      };
+    }).filter(e => e.pkg && (e.lang === 'en' || e.lang === 'all'));
+  },
+
   getSources: async () => {
+    const installedPkgs = new Set(API._getInstalledPkgList());
+    if (installedPkgs.size === 0) {
+      const localPath = localStorage.getItem('shinobi_storage_folder_path') || localStorage.getItem('shinobi_local_folder');
+      if (localPath) {
+        return [{
+          id: 'local',
+          name: 'Local Storage',
+          lang: 'all',
+          pkg: 'local.storage',
+          icon_url: '/static/img/ic_local_source.png',
+          supports_latest: false
+        }];
+      }
+      return [];
+    }
+
     try {
       const res = await fetch('/api/sources');
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) return data;
+        if (Array.isArray(data) && data.length > 0) {
+          return data.filter(s => installedPkgs.has(s.pkg) || installedPkgs.has(s.id) || s.id === 'local');
+        }
       }
     } catch (e) {}
 
-    const installedPkgs = new Set(API._getInstalledPkgList());
-    if (installedPkgs.size === 0) return [];
-    return API._availableCatalog.filter(s => installedPkgs.has(s.pkg) || installedPkgs.has(s.id));
+    let allExts = [];
+    try {
+      const raw = localStorage.getItem('shinobi_repo_exts_cache');
+      if (raw) allExts = JSON.parse(raw);
+    } catch (e) {}
+
+    const sources = [];
+    for (const pkg of installedPkgs) {
+      const foundExt = allExts.find(e => e.pkg === pkg);
+      if (foundExt) {
+        if (Array.isArray(foundExt.sources) && foundExt.sources.length > 0) {
+          for (const s of foundExt.sources) {
+            sources.push({
+              id: s.id || foundExt.pkg,
+              name: s.name || foundExt.name,
+              lang: (s.language || s.lang || foundExt.lang || 'en').toLowerCase(),
+              pkg: foundExt.pkg,
+              version: foundExt.version,
+              icon_url: foundExt.icon_url,
+              supports_latest: true
+            });
+          }
+        } else {
+          sources.push({
+            id: foundExt.pkg,
+            name: foundExt.name,
+            lang: foundExt.lang || 'en',
+            pkg: foundExt.pkg,
+            version: foundExt.version,
+            icon_url: foundExt.icon_url,
+            supports_latest: true
+          });
+        }
+      } else {
+        const cleanName = pkg.replace('eu.kanade.tachiyomi.extension.', '').replace('tachiyomi.', '');
+        sources.push({
+          id: pkg,
+          name: cleanName.charAt(0).toUpperCase() + cleanName.slice(1),
+          lang: 'en',
+          pkg: pkg,
+          version: '1.0.0',
+          icon_url: '/static/img/default-cover.png',
+          supports_latest: true
+        });
+      }
+    }
+    return sources;
   },
 
   getExtensions: async (params = {}) => {
-    try {
-      const q = new URLSearchParams(params).toString();
-      const res = await fetch(`/api/extensions${q ? '?' + q : ''}`);
-      if (res.ok) return await res.json();
-    } catch (e) {}
-
-    let list = [...API._availableCatalog];
-    if (params.q) {
-      const q = params.q.toLowerCase().trim();
-      list = list.filter(e => e.name.toLowerCase().includes(q) || e.pkg.toLowerCase().includes(q));
+    // 1. Try local server first if running and has full extensions list
+    if (params.force !== true && params.force !== 'true') {
+      try {
+        const q = new URLSearchParams(params).toString();
+        const res = await fetch(`/api/extensions${q ? '?' + q : ''}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && Array.isArray(data.extensions) && data.extensions.length > 5) {
+            return data;
+          }
+        }
+      } catch (e) {}
     }
+
+    // 2. Fetch directly from Keiyoushi repository
+    try {
+      let cached = null;
+      try {
+        const rawCache = localStorage.getItem('shinobi_repo_exts_cache');
+        if (rawCache && !params.force) {
+          cached = JSON.parse(rawCache);
+        }
+      } catch (e) {}
+
+      if (!cached || params.force === 'true' || params.force === true) {
+        const repos = await API.getExtensionRepos();
+        let allExts = [];
+        for (const repo of repos) {
+          let url = repo.url;
+          if (url.includes('index.min.json')) {
+            url = url.replace('index.min.json', 'index.json');
+          }
+          try {
+            const resp = await fetch(url);
+            if (resp.ok) {
+              const json = await resp.json();
+              const parsed = API._parseRepoExtensions(json, repo.name);
+              allExts.push(...parsed);
+            }
+          } catch (err) {
+            console.warn(`Failed to fetch repo ${repo.name}:`, err);
+          }
+        }
+
+        if (allExts.length > 0) {
+          allExts.sort((a, b) => a.name.localeCompare(b.name));
+          cached = allExts;
+          try {
+            localStorage.setItem('shinobi_repo_exts_cache', JSON.stringify(cached));
+          } catch (e) {}
+        }
+      }
+
+      if (cached && cached.length > 0) {
+        let list = [...cached];
+        if (params.q) {
+          const q = params.q.toLowerCase().trim();
+          list = list.filter(e => e.name.toLowerCase().includes(q) || e.pkg.toLowerCase().includes(q));
+        }
+        if (params.lang && params.lang !== 'all') {
+          list = list.filter(e => e.lang === params.lang || e.lang === 'all');
+        }
+        const page = parseInt(params.page) || 1;
+        const limit = parseInt(params.limit) || 40;
+        const total = list.length;
+        const pages = Math.ceil(total / limit);
+        const start = (page - 1) * limit;
+        const paged = list.slice(start, start + limit);
+
+        return {
+          extensions: paged,
+          total,
+          page,
+          pages
+        };
+      }
+    } catch (e) {
+      console.error('Failed to load extensions from repo:', e);
+    }
+
     return {
-      extensions: list,
-      total: list.length,
+      extensions: [],
+      total: 0,
       pages: 1
     };
   },
 
   getInstalledExtensions: async () => {
+    const installedPkgs = new Set(API._getInstalledPkgList());
+    if (installedPkgs.size === 0) return [];
+
     try {
       const res = await fetch('/api/extensions/installed');
-      if (res.ok) return await res.json();
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          return data.filter(e => installedPkgs.has(e.pkg));
+        }
+      }
     } catch (e) {}
 
-    const installedPkgs = new Set(API._getInstalledPkgList());
-    return API._availableCatalog.filter(e => installedPkgs.has(e.pkg) || installedPkgs.has(e.id));
+    let allExts = [];
+    try {
+      const raw = localStorage.getItem('shinobi_repo_exts_cache');
+      if (raw) allExts = JSON.parse(raw);
+    } catch (e) {}
+
+    return allExts.filter(e => installedPkgs.has(e.pkg));
   },
 
   installExtension: async (pkg) => {
@@ -323,18 +483,19 @@ const API = {
 
   getExtensionRepos: async () => {
     try {
-      return await API.get('/api/extensions/repos');
-    } catch (e) {
-      try {
-        const raw = localStorage.getItem('shinobi_extension_repos');
-        if (raw) return JSON.parse(raw);
-      } catch (err) {}
-      return [{
-        id: 'keiyoushi',
-        name: 'Keiyoushi (Official)',
-        url: 'https://raw.githubusercontent.com/keiyoushi/extensions/repo/index.min.json'
-      }];
-    }
+      const res = await fetch('/api/extensions/repos');
+      if (res.ok) return await res.json();
+    } catch (e) {}
+
+    try {
+      const raw = localStorage.getItem('shinobi_extension_repos');
+      if (raw) return JSON.parse(raw);
+    } catch (err) {}
+    return [{
+      id: 'keiyoushi',
+      name: 'Keiyoushi (Official)',
+      url: 'https://raw.githubusercontent.com/keiyoushi/extensions/repo/index.json'
+    }];
   },
 
   addExtensionRepo: async (data) => {
